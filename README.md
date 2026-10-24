@@ -20,7 +20,7 @@ No third-party packages are required.
 - **NEW BATTLE** — start a new battle with the selected army size
 - **Click a soldier** — inspect an individual soldier's health
 
-The red EMBER army and blue TIDELINE army each have scouts, infantry, and heavy soldiers. Units avoid collisions with nearby soldiers and attack enemies within range. Attacking soldiers are briefly highlighted, with an attack line showing their target. The battle ends when one army is wiped out.
+The red EMBER army and blue TIDELINE army each have scouts, infantry, and heavy soldiers. Units avoid collisions with nearby soldiers, sidestep blocked paths, and attack enemies within range. Nearby allies can focus their attacks on the same enemy. Fallen soldiers remain on the field as corpses. Attacking soldiers are briefly highlighted, with an attack line showing their target. The battle ends when one army is wiped out.
 
 The simulation updates at approximately 30 steps per second.
 

@@ -98,6 +98,65 @@ class BattleSimulationTests(unittest.TestCase):
         self.assertGreater(red.x, 400.0)
         self.assertLess(red.y - 100.0, 1.0)
 
+    def test_blocked_units_can_sidestep_and_keep_advancing(self) -> None:
+        simulation = BattleSimulation(team_size=2, seed=12)
+        front, blocker, blue_front, blue_rear = simulation.units
+        front.x, front.y = 400.0, 300.0
+        blocker.x, blocker.y = 407.0, 300.0
+        blue_front.speed = 0.0
+        blue_rear.speed = 0.0
+        front.speed = 50.0
+        blocker.speed = 0.0
+
+        simulation.step(0.2)
+
+        self.assertGreater(front.x, 400.0)
+        self.assertNotAlmostEqual(front.y, 300.0)
+        self.assertGreaterEqual(
+            math.hypot(front.x - blocker.x, front.y - blocker.y),
+            UNIT_RADIUS * 2.0 - 0.05,
+        )
+
+    def test_nearby_allies_can_focus_attack_on_the_same_enemy(self) -> None:
+        simulation = BattleSimulation(team_size=2, seed=14)
+        first_attacker, second_attacker, target, removed_target = simulation.units
+        first_attacker.x, first_attacker.y = 400.0, 300.0
+        second_attacker.x, second_attacker.y = 400.0, 310.0
+        target.x, target.y = 410.0, 305.0
+        removed_target.alive = False
+        simulation.casualties[1] = 1
+        for unit in (first_attacker, second_attacker, target):
+            unit.speed = 0.0
+            unit.cooldown = 0.0
+
+        simulation.step(0.1)
+
+        red_attacks = [
+            pair
+            for pair in simulation.attacking_pairs
+            if simulation.units[pair[0]].team == 0
+        ]
+        self.assertEqual(len(red_attacks), 2)
+        self.assertEqual({target_index for _, target_index in red_attacks}, {2})
+
+    def test_dead_units_remain_at_their_death_location(self) -> None:
+        simulation = BattleSimulation(team_size=1, seed=15)
+        red, blue = simulation.units
+        red.x, red.y = 400.0, 300.0
+        blue.x, blue.y = 405.0, 300.0
+        for unit in simulation.units:
+            unit.speed = 0.0
+            unit.cooldown = 0.0
+            unit.health = 1.0
+            unit.damage = 2.0
+
+        simulation.step(0.1)
+        blue_corpse_position = (blue.x, blue.y)
+        self.assertFalse(blue.alive)
+        simulation.step(0.1)
+
+        self.assertEqual((blue.x, blue.y), blue_corpse_position)
+
     def test_invalid_steps_are_rejected(self) -> None:
         simulation = BattleSimulation(team_size=1, seed=4)
 

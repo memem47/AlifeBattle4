@@ -40,7 +40,7 @@ class BattleApp:
         self.view_offset_x = 0.0
         self.view_offset_y = 0.0
         self.unit_shapes: list[int] = []
-        self.hidden_shapes: set[int] = set()
+        self.corpse_markers: dict[int, tuple[int, int]] = {}
         self.attack_effects: dict[int, tuple[int, int, int, int]] = {}
         self.particle_data: list[list[float | int]] = []
         self._build_interface()
@@ -307,7 +307,7 @@ class BattleApp:
     def _draw_battlefield(self) -> None:
         self.canvas.delete("all")
         self.unit_shapes.clear()
-        self.hidden_shapes.clear()
+        self.corpse_markers.clear()
         self.attack_effects.clear()
         self.particle_data.clear()
         self._update_view_transform()
@@ -372,7 +372,7 @@ class BattleApp:
             font=("Consolas", 8, "bold"),
         )
 
-        for unit in self.simulation.units:
+        for index, unit in enumerate(self.simulation.units):
             color = self._unit_color(unit)
             x, y = self._world_to_view(unit.x, unit.y)
             radius = UNIT_DOT * self.view_scale
@@ -384,10 +384,9 @@ class BattleApp:
                 fill=color,
                 outline="",
             )
-            if not unit.alive:
-                self.canvas.itemconfigure(shape, state="hidden")
-                self.hidden_shapes.add(shape)
             self.unit_shapes.append(shape)
+            if not unit.alive:
+                self._draw_corpse(index)
         self._draw_selection()
 
     def _unit_color(self, unit: Unit) -> str:
@@ -454,19 +453,48 @@ class BattleApp:
 
     def _render_units(self) -> None:
         self._update_view_transform()
-        for unit, shape in zip(self.simulation.units, self.unit_shapes):
+        for index, (unit, shape) in enumerate(zip(self.simulation.units, self.unit_shapes)):
             if unit.alive:
                 x, y = self._world_to_view(unit.x, unit.y)
                 radius = UNIT_DOT * self.view_scale
                 self.canvas.coords(shape, x - radius, y - radius, x + radius, y + radius)
-                if shape in self.hidden_shapes:
-                    self.canvas.itemconfigure(shape, state="normal")
-                    self.hidden_shapes.remove(shape)
-            elif shape not in self.hidden_shapes:
-                self.canvas.itemconfigure(shape, state="hidden")
-                self.hidden_shapes.add(shape)
+            elif index not in self.corpse_markers:
+                self._draw_corpse(index)
         self._render_attack_effects()
         self._draw_selection()
+
+    def _draw_corpse(self, index: int) -> None:
+        unit = self.simulation.units[index]
+        x, y = self._world_to_view(unit.x, unit.y)
+        shape = self.unit_shapes[index]
+        corpse_fill = "#49352f" if unit.team == 0 else "#293b43"
+        corpse_mark = "#bc7663" if unit.team == 0 else "#69a1b8"
+        self.canvas.itemconfigure(
+            shape,
+            fill=corpse_fill,
+            outline=corpse_mark,
+            width=1,
+        )
+        radius = max(2.5, UNIT_DOT * self.view_scale * 0.8)
+        first_mark = self.canvas.create_line(
+            x - radius,
+            y - radius,
+            x + radius,
+            y + radius,
+            fill=corpse_mark,
+            width=1,
+            tags="corpse",
+        )
+        second_mark = self.canvas.create_line(
+            x - radius,
+            y + radius,
+            x + radius,
+            y - radius,
+            fill=corpse_mark,
+            width=1,
+            tags="corpse",
+        )
+        self.corpse_markers[index] = (first_mark, second_mark)
 
     def _render_attack_effects(self) -> None:
         for attacker_index, target_index in self.simulation.attacking_pairs:

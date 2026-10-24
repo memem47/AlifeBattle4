@@ -208,17 +208,33 @@ class BattleSimulation:
                 self.height - UNIT_RADIUS,
                 max(UNIT_RADIUS, unit.y + movement_y * unit.speed * dt),
             )
-            collides = False
-            for other_index in nearby_indices:
-                other = self.units[other_index]
-                if not other.alive:
-                    continue
-                dx, dy = next_x - other.x, next_y - other.y
-                if dx * dx + dy * dy < COLLISION_DIAMETER * COLLISION_DIAMETER:
-                    collides = True
+            candidates = [(next_x, next_y)]
+            preferred_side = 1 if (index + unit.team) % 2 else -1
+            for side in (preferred_side, -preferred_side):
+                sidestep_x = movement_x * 0.68 - movement_y * side * 0.73
+                sidestep_y = movement_y * 0.68 + movement_x * side * 0.73
+                candidates.append(
+                    (
+                        min(
+                            self.width - UNIT_RADIUS,
+                            max(UNIT_RADIUS, unit.x + sidestep_x * unit.speed * dt),
+                        ),
+                        min(
+                            self.height - UNIT_RADIUS,
+                            max(UNIT_RADIUS, unit.y + sidestep_y * unit.speed * dt),
+                        ),
+                    )
+                )
+            for candidate_x, candidate_y in candidates:
+                if all(
+                    not self.units[other_index].alive
+                    or (candidate_x - self.units[other_index].x) ** 2
+                    + (candidate_y - self.units[other_index].y) ** 2
+                    >= COLLISION_DIAMETER * COLLISION_DIAMETER
+                    for other_index in nearby_indices
+                ):
+                    unit.x, unit.y = candidate_x, candidate_y
                     break
-            if not collides:
-                unit.x, unit.y = next_x, next_y
 
         for index, damage in enumerate(damage_taken):
             unit = self.units[index]
